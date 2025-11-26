@@ -1,14 +1,14 @@
 import '../../domain/entities/campaign.dart';
 
 /*
+    Nueva BD:
     {
         "id_campana": 1,
-        "nombre_campana": "Campaña de Reciclaje",
+        "nombre": "Campaña de Reciclaje",
         "descripcion": "Reciclaje de ropa usada para familias necesitadas",
-        "fecha_inicio": "2025-06-01T00:00:00.000Z",
-        "fecha_fin": "2025-06-30T00:00:00.000Z",
-        "organizador": "Juan Pérez",
-        "imagen_url": null
+        "fecha_inicio": "2025-06-01",
+        "fecha_fin": "2025-06-30",
+        "imagen_banner": null
     },
 */
 class CampaignModel extends Campaign {
@@ -25,24 +25,23 @@ class CampaignModel extends Campaign {
   factory CampaignModel.fromJson(Map<String, dynamic> json) {
     return CampaignModel(
       id: json['id_campana'],
-      name: json['nombre_campana'],
-      description: json['descripcion'],
+      name: json['nombre'] ?? '',
+      description: json['descripcion'] ?? '',
       startDate: DateTime.parse(json['fecha_inicio']),
       endDate: DateTime.parse(json['fecha_fin']),
-      organizer: json['organizador'],
-      imageUrl: json['imagen_url'] ?? '',
+      organizer: 'Organización',
+      imageUrl: json['imagen_banner'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id_campana': id,
-      'nombre_campana': name,
+      'nombre': name,
       'descripcion': description,
       'fecha_inicio': startDate.toIso8601String(),
       'fecha_fin': endDate.toIso8601String(),
-      'organizador': organizer,
-      'imagen_url': imageUrl,
+      'imagen_banner': imageUrl,
     };
   }
 }

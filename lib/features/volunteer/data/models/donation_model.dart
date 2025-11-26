@@ -11,11 +11,26 @@ class DonationModel extends Donation {
   });
 
   factory DonationModel.fromJson(Map<String, dynamic> json) {
+    /*
+    Nueva BD:
+    {
+        "id_donacion": 1,
+        "tipo": "dinero",
+        "fecha": "2024-11-26",
+        "id_donante": 1,
+        "id_campana": 1,
+        "dinero": {
+            "estado": "pendiente"
+        }
+    }
+    */
     return DonationModel(
       id: json['id_donacion'],
-      type: json['tipo_donacion'] ?? '',
-      validationStatus: json['estado_validacion'] ?? '',
-      donationDate: DateTime.parse(json['fecha_donacion']),
+      type: json['tipo'] ?? '',
+      validationStatus: (json['dinero'] != null && json['dinero']['estado'] != null) 
+          ? json['dinero']['estado'] 
+          : 'pendiente',
+      donationDate: DateTime.parse(json['fecha']),
       campaignId: json['id_campana'],
       donorId: json['id_donante'],
     );
@@ -24,9 +39,8 @@ class DonationModel extends Donation {
   Map<String, dynamic> toJson() {
     return {
       'id_donacion': id,
-      'tipo_donacion': type,
-      'estado_validacion': validationStatus,
-      'fecha_donacion': donationDate.toIso8601String(),
+      'tipo': type,
+      'fecha': donationDate.toIso8601String().split('T')[0],
       'id_campana': campaignId,
       'id_donante': donorId,
     };

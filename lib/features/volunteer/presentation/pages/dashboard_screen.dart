@@ -85,7 +85,7 @@ class VolunteerDashboardScreenState
       // Obtener total de donaciones
       final totalResponse = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/dashboard/total-donaciones',
+          'http://10.0.2.2:8000/api/dashboard/total-donaciones',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -104,7 +104,7 @@ class VolunteerDashboardScreenState
       final currentYear = DateTime.now().year;
       final monthResponse = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/dashboard/donaciones-por-mes/$currentYear',
+          'http://10.0.2.2:8000/api/dashboard/donaciones-por-mes/$currentYear',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -121,7 +121,7 @@ class VolunteerDashboardScreenState
       // Obtener vista rápida de stock
       final stockResponse = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/inventario/stock',
+          'http://10.0.2.2:8000/api/inventario/stock',
         ),
         headers: {
           'Authorization': 'Bearer $token',

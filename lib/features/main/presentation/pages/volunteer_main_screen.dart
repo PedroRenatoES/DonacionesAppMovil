@@ -92,7 +92,7 @@ class VolunteerMainScreenState extends State<VolunteerMainScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('https://backenddonaciones.onrender.com/api/users/$userId'),
+        Uri.parse('http://10.0.2.2:8000/api/users/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

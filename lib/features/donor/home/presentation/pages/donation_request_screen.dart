@@ -315,7 +315,7 @@ class DonationRequestPageState extends State<DonationRequestPage>
       var request = http.MultipartRequest(
         'POST',
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/imagenes-solicitud-recogida',
+          'http://10.0.2.2:8000/api/imagenes-solicitud-recogida',
         ),
       );
 
@@ -366,7 +366,7 @@ class DonationRequestPageState extends State<DonationRequestPage>
     try {
       final response = await http.post(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/solicitudesRecoleccion',
+          'http://10.0.2.2:8000/api/solicitudesRecoleccion',
         ),
         headers: {
           'Authorization': 'Bearer $_token',

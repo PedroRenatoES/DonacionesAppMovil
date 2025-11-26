@@ -82,7 +82,7 @@ class ShelfDetailScreenState extends State<ShelfDetailScreen>
     try {
       final response = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/inventario/stock/estante/${widget.shelfId}',
+          'http://10.0.2.2:8000/api/inventario/stock/estante/${widget.shelfId}',
         ),
         headers: {
           'Authorization': 'Bearer $token',

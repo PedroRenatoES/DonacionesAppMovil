@@ -44,7 +44,9 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
       final donanteId = prefs.getInt('donante_id');
       final token = prefs.getString('token');
 
-      print('donanteId: $donanteId, token: $token');
+      print('=== DEBUG DONATIONS ===');
+      print('donanteId: $donanteId');
+      print('token: $token');
 
       if (donanteId == null || token == null) {
         state = state.copyWith(
@@ -55,26 +57,34 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
       }
 
       // Cargar donaciones en especie
+      final especieUrl = 'http://10.0.2.2:8000/api/donaciones/donante/$donanteId';
+      print('URL especie: $especieUrl');
+      
       final especieResponse = await http.get(
-        Uri.parse(
-          'https://backenddonaciones.onrender.com/api/donantes/$donanteId/donaciones',
-        ),
+        Uri.parse(especieUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
+      print('Especie response status: ${especieResponse.statusCode}');
+      print('Especie response body: ${especieResponse.body}');
+
       // Cargar donaciones en dinero
+      final dineroUrl = 'http://10.0.2.2:8000/api/donaciones/dinero/donante/$donanteId';
+      print('URL dinero: $dineroUrl');
+      
       final dineroResponse = await http.get(
-        Uri.parse(
-          'https://backenddonaciones.onrender.com/api/donaciones-en-dinero/getAllById/$donanteId',
-        ),
+        Uri.parse(dineroUrl),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+
+      print('Dinero response status: ${dineroResponse.statusCode}');
+      print('Dinero response body: ${dineroResponse.body}');
 
       List<Map<String, dynamic>> groupedDonations = [];
       List<dynamic> moneyDonations = [];
@@ -82,7 +92,11 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
       // Procesar donaciones en especie
       if (especieResponse.statusCode == 200) {
         final rawDonations = json.decode(especieResponse.body);
-        groupedDonations = _groupDonations(rawDonations);
+        // Filtrar solo donaciones de tipo 'especie' o 'ropa'
+        final especieOnly = (rawDonations as List).where((d) => 
+          d['tipo'] == 'especie' || d['tipo'] == 'ropa'
+        ).toList();
+        groupedDonations = _groupDonations(especieOnly);
       } else {
         throw Exception(
           'Error al cargar donaciones en especie: ${especieResponse.statusCode}',
@@ -115,46 +129,47 @@ class DonationsNotifier extends StateNotifier<DonationsState> {
   }
 
   List<Map<String, dynamic>> _groupDonations(List<dynamic> rawDonations) {
-    Map<int, Map<String, dynamic>> grouped = {};
+    List<Map<String, dynamic>> result = [];
 
     for (var donation in rawDonations) {
-      int donationId = donation['id_donacion_especie'];
-
-      if (!grouped.containsKey(donationId)) {
-        grouped[donationId] = {
-          'id_donacion_especie': donationId,
-          'nombre_articulo':
-              donation['nombre_articulo'] ?? 'Artículo sin nombre',
-          'cantidad_total': donation['cantidad'] ?? 0,
-          'cantidad_restante_total': donation['cantidad_restante'] ?? 0,
-          'distribuciones': <Map<String, dynamic>>[],
-          'has_distributions': false,
-        };
-      }
-
-      // Si tiene paquete, es una distribución
-      if (donation['nombre_paquete'] != null && donation['ubicacion'] != null) {
-        grouped[donationId]!['has_distributions'] = true;
-
-        // Verificar si ya existe esta distribución para evitar duplicados
-        bool distributionExists =
-            (grouped[donationId]!['distribuciones'] as List).any(
-              (dist) =>
-                  dist['nombre_paquete'] == donation['nombre_paquete'] &&
-                  dist['ubicacion'] == donation['ubicacion'],
-            );
-
-        if (!distributionExists) {
-          (grouped[donationId]!['distribuciones'] as List).add({
-            'nombre_paquete': donation['nombre_paquete'],
-            'ubicacion': donation['ubicacion'],
-            'cantidad_restante': donation['cantidad_restante'] ?? 0,
-          });
+      int donationId = donation['id_donacion'];
+      
+      // Obtener el primer detalle para mostrar el nombre del producto principal
+      String nombreArticulo = 'Donación en especie';
+      int cantidadTotal = 0;
+      
+      if (donation['detalles'] != null && donation['detalles'] is List && donation['detalles'].isNotEmpty) {
+        // Tomar el nombre del primer producto
+        var primerDetalle = donation['detalles'][0];
+        if (primerDetalle['producto'] != null) {
+          nombreArticulo = primerDetalle['producto']['nombre'] ?? 'Artículo sin nombre';
+        }
+        
+        // Si hay más de un producto, agregar "y X más"
+        if (donation['detalles'].length > 1) {
+          nombreArticulo += ' y ${donation['detalles'].length - 1} más';
+        }
+        
+        // Calcular cantidad total de todos los detalles
+        for (var detalle in donation['detalles']) {
+          cantidadTotal += (detalle['cantidad'] ?? 0) as int;
         }
       }
+
+      result.add({
+        'id_donacion_especie': donationId,
+        'nombre_articulo': nombreArticulo,
+        'cantidad_total': cantidadTotal,
+        'cantidad_restante_total': cantidadTotal, // Por ahora, igual que total (no hay sistema de distribución en nuevo backend)
+        'distribuciones': <Map<String, dynamic>>[],
+        'has_distributions': false,
+        'detalles': donation['detalles'] ?? [],
+        'fecha': donation['fecha'],
+        'tipo': donation['tipo'],
+      });
     }
 
-    return grouped.values.toList();
+    return result;
   }
 
   void clearError() {
@@ -193,7 +208,11 @@ final errorProvider = Provider<String?>((ref) {
 final totalMoneyDonatedProvider = Provider<double>((ref) {
   final moneyDonations = ref.watch(moneyDonationsProvider);
   return moneyDonations.fold(0.0, (sum, donation) {
-    return sum + (donation['monto'] ?? 0.0);
+    final dinero = donation['dinero'];
+    if (dinero != null && dinero['monto'] != null) {
+      return sum + (double.tryParse(dinero['monto'].toString()) ?? 0.0);
+    }
+    return sum;
   });
 });
 

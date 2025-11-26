@@ -87,7 +87,7 @@ class _WarehouseDetailScreenState extends State<WarehouseDetailScreen>
     try {
       final response = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/estantes/almacen/${widget.warehouseId}',
+          'http://10.0.2.2:8000/api/estantes/almacen/${widget.warehouseId}',
         ),
         headers: {
           'Authorization': 'Bearer $token',

@@ -516,7 +516,7 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
       }
 
       final response = await http.post(
-        Uri.parse('https://backenddonaciones.onrender.com/api/donaciones'),
+        Uri.parse('http://10.0.2.2:8000/api/donaciones'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -545,7 +545,7 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
 
       final responseMoney = await http.put(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/donaciones-en-dinero/${responseBody['id']}',
+          'http://10.0.2.2:8000/api/donaciones-en-dinero/${responseBody['id']}',
         ),
         headers: {
           'Authorization': 'Bearer $token',

@@ -11,18 +11,19 @@ class WarehouseModel extends Warehouse {
 
   factory WarehouseModel.fromJson(Map<String, dynamic> json) => WarehouseModel(
     /*
+    Nueva BD:
     {
-        "id_almacen": 6,
-        "nombre_almacen": "Almacen #6",
-        "ubicacion": "Av. 7mo Anillo, Calle 1",
-        "latitud": null,
-        "longitud": null
+        "id_almacen": 1,
+        "nombre": "Almacen Central",
+        "direccion": "Av. 7mo Anillo, Calle 1",
+        "latitud": -17.783,
+        "longitud": -63.182
     },
   */
     id: json['id_almacen'],
-    name: json['nombre_almacen'],
-    location: json['ubicacion'] ?? '',
-    latitud: json['latitud'] ?? 0.0,
-    longitud: json['longitud'] ?? 0.0,
+    name: json['nombre'] ?? '',
+    location: json['direccion'] ?? '',
+    latitud: (json['latitud'] is String) ? double.tryParse(json['latitud']) ?? 0.0 : (json['latitud']?.toDouble() ?? 0.0),
+    longitud: (json['longitud'] is String) ? double.tryParse(json['longitud']) ?? 0.0 : (json['longitud']?.toDouble() ?? 0.0),
   );
 }

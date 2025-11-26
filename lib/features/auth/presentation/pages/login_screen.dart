@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '/features/auth/presentation/pages/login_type_screen.dart';
+import '/features/auth/presentation/pages/register_screen.dart';
 import '/features/main/presentation/pages/main_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,7 +39,7 @@ class LoginScreenState extends State<LoginScreen> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/donante-auth/login',
+          'http://10.0.2.2:8000/api/donante-auth/login',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -251,8 +252,34 @@ class LoginScreenState extends State<LoginScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF000814),
                                   ),
-                                ),
+                                  ),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            '¿No tienes cuenta? ',
+                            style: TextStyle(color: Color(0xFF000814)),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Regístrate',
+                              style: TextStyle(
+                                color: Color(0xFFFFC300),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

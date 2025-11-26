@@ -91,7 +91,7 @@ class ArticleDetailScreenState extends State<ArticleDetailScreen>
     try {
       final response = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/inventario/stock/articulo/${widget.articleId}',
+          'http://10.0.2.2:8000/api/inventario/stock/articulo/${widget.articleId}',
         ),
         headers: {
           'Authorization': 'Bearer $token',

@@ -4,6 +4,7 @@ import 'package:flutter_donaciones_1/features/donor/home/presentation/pages/dona
 import '/features/auth/presentation/pages/auth_wrapper_screen.dart';
 import '../../../donor/home/presentation/pages/campaigns_screen.dart';
 import '../../../donor/home/presentation/pages/my_donations_screen.dart';
+import '../../../donor/home/presentation/pages/locations_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MainScreen extends StatefulWidget {
@@ -168,6 +169,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final screens = [
       CampaignsScreen(),
       MyDonationsScreen(),
+      LocationsScreen(),
       DonationsRequestScreen(),
     ];
 
@@ -329,7 +331,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     size: 26,
                   ),
                 ),
-                label: 'Mis Donaciones',
+                label: 'Donaciones',
               ),
               BottomNavigationBarItem(
                 icon: AnimatedContainer(
@@ -343,6 +345,25 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   ),
                   child: Icon(
                     _currentIndex == 2
+                        ? Icons.location_on
+                        : Icons.location_on_outlined,
+                    size: 26,
+                  ),
+                ),
+                label: 'Ubicaciones',
+              ),
+              BottomNavigationBarItem(
+                icon: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: EdgeInsets.all(_currentIndex == 3 ? 8 : 4),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 3
+                        ? accent.withOpacity(0.2)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _currentIndex == 3
                         ? Icons.collections_bookmark
                         : Icons.collections_bookmark_outlined,
                     size: 26,

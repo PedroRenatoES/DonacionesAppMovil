@@ -93,7 +93,7 @@ class MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       final response = await http.get(
         Uri.parse(
-          'https://backenddonaciones.onrender.com/api/puntos-de-recoleccion/campana/${widget.campaignId}',
+          'http://10.0.2.2:8000/api/puntos-de-recoleccion/campana/${widget.campaignId}',
         ),
         headers: {
           'Authorization': 'Bearer $token',

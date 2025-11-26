@@ -5,7 +5,7 @@ import '../error/exceptions.dart';
 class DioClient {
   final Dio dio;
   final SharedPreferences sharedPreferences;
-  static const String baseUrl = 'https://backenddonaciones.onrender.com/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   DioClient({required this.sharedPreferences})
     : dio = Dio(BaseOptions(baseUrl: baseUrl)) {

@@ -1235,9 +1235,36 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
   }
 
   Widget _buildMoneyDonationCard(Map<String, dynamic> donation) {
-    final amount = (donation['monto'] ?? 0.0);
-    final date = donation['fecha_donacion'] ?? '';
-    final description = donation['descripcion'] ?? 'Donación en dinero';
+    final dinero = donation['dinero'] ?? {};
+    final amount = double.tryParse(dinero['monto']?.toString() ?? '0') ?? 0.0;
+    final moneda = dinero['moneda'] ?? 'BOB';
+    final fecha = donation['fecha'] ?? '';
+    final metodoPago = dinero['metodo_pago'] ?? 'No especificado';
+    final referencia = dinero['referencia_pago'];
+    final estado = dinero['estado'] ?? 'pendiente';
+    
+    // Determinar color según estado
+    final Color estadoColor;
+    final String estadoTexto;
+    final IconData estadoIcon;
+    
+    switch (estado.toLowerCase()) {
+      case 'validado':
+      case 'confirmado':
+        estadoColor = successColor;
+        estadoTexto = 'Validado';
+        estadoIcon = Icons.check_circle_rounded;
+        break;
+      case 'rechazado':
+        estadoColor = errorColor;
+        estadoTexto = 'Rechazado';
+        estadoIcon = Icons.cancel_rounded;
+        break;
+      default:
+        estadoColor = warningColor;
+        estadoTexto = 'Pendiente';
+        estadoIcon = Icons.schedule_rounded;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -1287,7 +1314,7 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '\$${amount.toStringAsFixed(2)}',
+                        '$moneda ${amount.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
@@ -1296,18 +1323,24 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        description,
+                        'Donación en dinero',
                         style: const TextStyle(
                           fontSize: 16,
                           color: primaryDark,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (date.isNotEmpty) ...[
+                      if (fecha.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          'Fecha: $date',
-                          style: TextStyle(fontSize: 12, color: lightBlue),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 12, color: lightBlue),
+                            const SizedBox(width: 4),
+                            Text(
+                              fecha.substring(0, fecha.length > 16 ? 16 : fecha.length),
+                              style: TextStyle(fontSize: 12, color: lightBlue),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -1319,25 +1352,25 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: successColor.withOpacity(0.1),
+                    color: estadoColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: successColor.withOpacity(0.3)),
+                    border: Border.all(color: estadoColor.withOpacity(0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.check_circle_rounded,
+                        estadoIcon,
                         size: 16,
-                        color: successColor,
+                        color: estadoColor,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Completado',
+                        estadoTexto,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: successColor,
+                          color: estadoColor,
                         ),
                       ),
                     ],
@@ -1346,6 +1379,61 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
               ],
             ),
             const SizedBox(height: 20),
+            
+            // Detalles de pago
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cream.withOpacity(0.5), cream.withOpacity(0.2)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: lightBlue.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.payment_rounded,
+                          color: accent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Detalles de pago',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: primaryDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  _buildDetailRow('Método de pago', metodoPago, Icons.credit_card),
+                  if (referencia != null && referencia.toString().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildDetailRow('Referencia', referencia.toString(), Icons.confirmation_number),
+                  ],
+                  const SizedBox(height: 12),
+                  _buildDetailRow('Moneda', moneda, Icons.monetization_on),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Mensaje de agradecimiento
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1389,6 +1477,33 @@ class MyDonationsScreenState extends ConsumerState<MyDonationsScreen>
           ],
         ),
       ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: primaryBlue),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontSize: 14,
+            color: lightBlue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: primaryDark,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
