@@ -9,9 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../domain/entities/donation_request.dart';
-import '../../domain/entities/campaign.dart';
 import '../providers/donation_request_provider.dart';
-import '../providers/campaigns_provider.dart';
 import '../../../../../core/theme/adminlte_theme.dart';
 import '../../../../../core/widgets/adminlte_widgets.dart';
 
@@ -574,10 +572,10 @@ class _DonationsRequestScreenState extends ConsumerState<DonationsRequestScreen>
   }
 
   void _showCreateRequestDialog(BuildContext context) {
-    // Navegar a la pantalla de selección de campaña
+    // Navegar directo al formulario de creación
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const CampaignSelectionScreen(),
+        builder: (context) => const CreateRequestScreen(),
       ),
     );
   }
@@ -783,178 +781,11 @@ class DonationRequestDetailScreen extends StatelessWidget {
 }
 
 // =============================================================================
-// CAMPAIGN SELECTION SCREEN
-// =============================================================================
-
-class CampaignSelectionScreen extends ConsumerStatefulWidget {
-  const CampaignSelectionScreen({super.key});
-
-  @override
-  ConsumerState<CampaignSelectionScreen> createState() =>
-      _CampaignSelectionScreenState();
-}
-
-class _CampaignSelectionScreenState
-    extends ConsumerState<CampaignSelectionScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Cargar campañas
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(campaignsNotifierProvider.notifier).loadCampaigns();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final campaignsState = ref.watch(campaignsNotifierProvider);
-
-    return Scaffold(
-      backgroundColor: AdminLTETheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Seleccionar Campaña',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: AdminLTETheme.navbarDark,
-        foregroundColor: Colors.white,
-      ),
-      body: Builder(
-        builder: (context) {
-          if (campaignsState.isLoadingCampaigns) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AdminLTETheme.primary),
-              ),
-            );
-          } else if (campaignsState.errorMessage != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: AdminLTEAlert(
-                  message: campaignsState.errorMessage!,
-                  icon: Icons.error_outline,
-                  color: AdminLTETheme.danger,
-                ),
-              ),
-            );
-          } else if (campaignsState.campaigns.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.campaign_outlined,
-                      size: 64,
-                      color: AdminLTETheme.info,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No hay campañas disponibles',
-                      style: AdminLTETheme.h5,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: campaignsState.campaigns.length,
-            itemBuilder: (context, index) {
-              final campaign = campaignsState.campaigns[index];
-              return _buildCampaignCard(context, campaign);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCampaignCard(BuildContext context, Campaign campaign) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
-      ),
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => CreateRequestScreen(campaign: campaign),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AdminLTETheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.campaign,
-                  color: AdminLTETheme.primary,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      campaign.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AdminLTETheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      campaign.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AdminLTETheme.textSecondary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: AdminLTETheme.textSecondary,
-                size: 16,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
 // CREATE REQUEST SCREEN
 // =============================================================================
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
-  final Campaign campaign;
-
-  const CreateRequestScreen({super.key, required this.campaign});
+  const CreateRequestScreen({super.key});
 
   @override
   ConsumerState<CreateRequestScreen> createState() =>
@@ -982,7 +813,6 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     await ref.read(donationRequestNotifierProvider.notifier).createDonationRequest(
           ubicacion: _ubicacionController.text.trim(),
           detalleSolicitud: _detalleController.text.trim(),
-          idCampana: widget.campaign.id,
         );
 
     final state = ref.read(donationRequestNotifierProvider);
@@ -1004,8 +834,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        // Volver a la pantalla anterior (2 veces para salir de selección y creación)
-        Navigator.of(context).pop();
+        // Volver a la pantalla anterior
         Navigator.of(context).pop();
       } else if (state.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1044,35 +873,19 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Info de campaña
+              // Información
               AdminLTECard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.campaign, color: AdminLTETheme.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Campaña Seleccionada',
-                          style: AdminLTETheme.h6,
+                    Icon(Icons.info_outline, color: AdminLTETheme.info),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Completa el formulario para solicitar la recolección de tu donación',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AdminLTETheme.textSecondary,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.campaign.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.campaign.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AdminLTETheme.textSecondary,
                       ),
                     ),
                   ],
@@ -1086,7 +899,6 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                 style: AdminLTETheme.h6,
               ),
               const SizedBox(height: 12),
-
               // Campo Ubicación
               TextFormField(
                 controller: _ubicacionController,

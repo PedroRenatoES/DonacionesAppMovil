@@ -12,6 +12,5 @@ abstract class DonorHomeRepository {
     required String ubicacion,
     required String detalleSolicitud,
     required int idDonante,
-    required int idCampana,
   });
 }

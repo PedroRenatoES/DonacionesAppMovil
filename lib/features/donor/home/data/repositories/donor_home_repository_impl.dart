@@ -51,14 +51,12 @@ class DonorHomeRepositoryImpl implements DonorHomeRepository {
     required String ubicacion,
     required String detalleSolicitud,
     required int idDonante,
-    required int idCampana,
   }) async {
     try {
       final solicitud = await remoteDataSource.createSolicitud(
         ubicacion: ubicacion,
         detalleSolicitud: detalleSolicitud,
         idDonante: idDonante,
-        idCampana: idCampana,
       );
       return Right(solicitud);
     } on ServerException catch (e) {

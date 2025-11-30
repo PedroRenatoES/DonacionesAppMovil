@@ -62,7 +62,6 @@ class DonationRequestNotifier extends _$DonationRequestNotifier {
   Future<void> createDonationRequest({
     required String ubicacion,
     required String detalleSolicitud,
-    required int idCampana,
   }) async {
     print('[DonationRequestNotifier] Creando solicitud de recolección...');
     state = state.copyWith(isLoadingDonationRequest: true, errorMessage: null);
@@ -81,7 +80,6 @@ class DonationRequestNotifier extends _$DonationRequestNotifier {
             ubicacion: ubicacion,
             detalleSolicitud: detalleSolicitud,
             idDonante: idDonante,
-            idCampana: idCampana,
           ),
         );
 

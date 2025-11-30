@@ -11,7 +11,6 @@ abstract class DonorHomeRemoteDataSource {
     required String ubicacion,
     required String detalleSolicitud,
     required int idDonante,
-    required int idCampana,
   });
 }
 
@@ -46,13 +45,11 @@ class DonorHomeRemoteDataSourceImpl implements DonorHomeRemoteDataSource {
     required String ubicacion,
     required String detalleSolicitud,
     required int idDonante,
-    required int idCampana,
   }) async {
     final response = await dioClient.post('/solicitudesRecoleccion', data: {
       'ubicacion': ubicacion,
       'detalle_solicitud': detalleSolicitud,
       'id_donante': idDonante,
-      'id_campana': idCampana,
     });
     return DonationRequestModel.fromJson(response.data);
   }

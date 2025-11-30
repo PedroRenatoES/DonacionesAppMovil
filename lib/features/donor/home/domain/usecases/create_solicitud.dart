@@ -16,7 +16,6 @@ class CreateSolicitud extends UseCase<DonationRequest, CreateSolicitudParams> {
       ubicacion: params.ubicacion,
       detalleSolicitud: params.detalleSolicitud,
       idDonante: params.idDonante,
-      idCampana: params.idCampana,
     );
   }
 }
@@ -25,12 +24,10 @@ class CreateSolicitudParams {
   final String ubicacion;
   final String detalleSolicitud;
   final int idDonante;
-  final int idCampana;
 
   CreateSolicitudParams({
     required this.ubicacion,
     required this.detalleSolicitud,
     required this.idDonante,
-    required this.idCampana,
   });
 }
