@@ -40,15 +40,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
         },
       );
 
-      // Cargar almacenes
-      final almacenesResponse = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/almacenes'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-
       List<Map<String, dynamic>> locations = [];
 
       if (puntosResponse.statusCode == 200) {
@@ -62,21 +53,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
             'tipo': 'Punto de Recolección',
             'color': AdminLTETheme.info,
             'icon': Icons.recycling,
-          });
-        }
-      }
-
-      if (almacenesResponse.statusCode == 200) {
-        final almacenes = json.decode(almacenesResponse.body) as List;
-        for (var almacen in almacenes) {
-          locations.add({
-            'nombre': almacen['nombre'] ?? 'Almacén',
-            'direccion': almacen['direccion'] ?? '',
-            'latitud': almacen['latitud'] != null ? double.tryParse(almacen['latitud'].toString()) : null,
-            'longitud': almacen['longitud'] != null ? double.tryParse(almacen['longitud'].toString()) : null,
-            'tipo': 'Almacén',
-            'color': AdminLTETheme.danger,
-            'icon': Icons.warehouse,
           });
         }
       }

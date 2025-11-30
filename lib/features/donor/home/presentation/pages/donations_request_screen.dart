@@ -5,8 +5,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../domain/entities/donation_request.dart';
 import '../providers/donation_request_provider.dart';
@@ -158,49 +156,32 @@ class DonationRequestCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header con foto y info básica
+                    // Header con info básica
                     Row(
                       children: [
-                        // Foto del request
+                        // Icono de estado
                         Container(
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
+                            color: _getStatusColor(request.estado),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: AppShadows.standard,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: CachedNetworkImage(
-                              imageUrl: request.imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: AppColors.cream,
-                                child: const Icon(
-                                  Icons.image_outlined,
-                                  color: AppColors.lightBlue,
-                                  size: 24,
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: AppColors.cream,
-                                child: const Icon(
-                                  Icons.broken_image_outlined,
-                                  color: AppColors.lightBlue,
-                                  size: 24,
-                                ),
-                              ),
-                            ),
+                          child: Icon(
+                            _getStatusIcon(request.estado),
+                            color: AppColors.white,
+                            size: 32,
                           ),
                         ),
                         const SizedBox(width: 16),
-                        // Info del donante
+                        // Info de la solicitud
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                request.donorName,
+                                'Solicitud #${request.requestId}',
                                 style: AppTextStyles.subtitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -209,14 +190,14 @@ class DonationRequestCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Icon(
-                                    Icons.location_on_outlined,
+                                    Icons.calendar_today_outlined,
                                     size: 16,
                                     color: AppColors.lightBlue,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      request.location,
+                                      _formatDate(request.fechaCreacion),
                                       style: AppTextStyles.caption,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -234,16 +215,36 @@ class DonationRequestCard extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            gradient: AppGradients.button,
+                            color: _getStatusColor(request.estado),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
-                            'Pendiente',
-                            style: TextStyle(
+                          child: Text(
+                            request.estado,
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppColors.white,
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Ubicación
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 16,
+                          color: AppColors.lightBlue,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            request.location,
+                            style: AppTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -273,7 +274,7 @@ class DonationRequestCard extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          // Botón ver ubicación
+                          // Botón ver detalles
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
@@ -288,7 +289,7 @@ class DonationRequestCard extends StatelessWidget {
                                 child: InkWell(
                                   onTap: () {
                                     HapticFeedback.selectionClick();
-                                    _showLocationDialog(context);
+                                    _showDetailsDialog(context);
                                   },
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
@@ -300,13 +301,13 @@ class DonationRequestCard extends StatelessWidget {
                                           MainAxisAlignment.center,
                                       children: [
                                         Icon(
-                                          Icons.map_outlined,
+                                          Icons.info_outline,
                                           size: 18,
                                           color: AppColors.accent,
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'Ver ubicación',
+                                          'Ver detalles',
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
@@ -321,48 +322,47 @@ class DonationRequestCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          // Botón aceptar solicitud
+                          // Fecha programada o info
                           Expanded(
                             child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
+                                color: request.fechaProgramada != null 
+                                    ? AppColors.successColor 
+                                    : AppColors.lightBlue.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
-                                gradient: AppGradients.button,
-                                boxShadow: AppShadows.button,
                               ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    _acceptRequest(context);
-                                  },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: const [
-                                        Icon(
-                                          Icons.check_circle_outline,
-                                          size: 18,
-                                          color: AppColors.white,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Aceptar',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.white,
-                                          ),
-                                        ),
-                                      ],
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    request.fechaProgramada != null 
+                                        ? Icons.event_available 
+                                        : Icons.schedule,
+                                    size: 18,
+                                    color: request.fechaProgramada != null 
+                                        ? AppColors.white 
+                                        : AppColors.accentBlue,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      request.fechaProgramada != null 
+                                          ? _formatDate(request.fechaProgramada!) 
+                                          : 'Sin fecha',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: request.fechaProgramada != null 
+                                            ? AppColors.white 
+                                            : AppColors.accentBlue,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -379,39 +379,70 @@ class DonationRequestCard extends StatelessWidget {
     );
   }
 
-  void _showLocationDialog(BuildContext context) {
+  Color _getStatusColor(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'pendiente':
+        return AppColors.accent;
+      case 'aprobada':
+      case 'aprobado':
+        return AppColors.successColor;
+      case 'rechazada':
+      case 'rechazado':
+        return AppColors.errorColor;
+      default:
+        return AppColors.lightBlue;
+    }
+  }
+
+  IconData _getStatusIcon(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'pendiente':
+        return Icons.schedule;
+      case 'aprobada':
+      case 'aprobado':
+        return Icons.check_circle;
+      case 'rechazada':
+      case 'rechazado':
+        return Icons.cancel;
+      default:
+        return Icons.info;
+    }
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  void _showDetailsDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Ubicación de recolección', style: AppTextStyles.subtitle),
-        content: SizedBox(
-          width: 300,
-          height: 300,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(request.latitude, request.longitude),
-                zoom: 16,
-              ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId('ubicacion'),
-                  position: LatLng(request.latitude, request.longitude),
-                ),
-              },
-              zoomControlsEnabled: false,
-              myLocationButtonEnabled: false,
-              scrollGesturesEnabled:
-                  false, // Desactiva scroll para evitar conflictos
-              zoomGesturesEnabled: false, // Desactiva zoom por gestos
-              tiltGesturesEnabled: false, // Desactiva inclinación
-              rotateGesturesEnabled: false, // Desactiva rotación
-              mapType: MapType.normal,
-            ),
-          ),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: AppColors.accent),
+            const SizedBox(width: 8),
+            Text('Detalles de la solicitud', style: AppTextStyles.subtitle),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('ID', '#${request.requestId}'),
+            _buildDetailRow('Estado', request.estado),
+            _buildDetailRow('Ubicación', request.location),
+            _buildDetailRow('Detalles', request.requestDetails),
+            _buildDetailRow('Fecha creación', _formatDate(request.fechaCreacion)),
+            if (request.fechaProgramada != null)
+              _buildDetailRow('Fecha programada', _formatDate(request.fechaProgramada!)),
+          ],
         ),
         actions: [
           Container(
@@ -438,20 +469,26 @@ class DonationRequestCard extends StatelessWidget {
     );
   }
 
-  void _acceptRequest(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: AppColors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Solicitud aceptada correctamente')),
-          ],
-        ),
-        backgroundColor: AppColors.successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.bodyText,
+            ),
+          ),
+        ],
       ),
     );
   }
