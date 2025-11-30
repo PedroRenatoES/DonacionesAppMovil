@@ -7,4 +7,11 @@ abstract class DonorHomeRepository {
   Future<Either<Failure, List<Campaign>>> getCampaigns();
 
   Future<Either<Failure, List<DonationRequest>>> getDonationRequests();
+
+  Future<Either<Failure, DonationRequest>> createSolicitud({
+    required String ubicacion,
+    required String detalleSolicitud,
+    required int idDonante,
+    required int idCampana,
+  });
 }

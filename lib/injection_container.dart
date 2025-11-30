@@ -7,6 +7,7 @@ import 'features/donor/home/data/repositories/donor_home_repository_impl.dart';
 import 'features/donor/home/domain/repositories/donor_home_repository.dart';
 import 'features/donor/home/domain/usecases/get_campaigns.dart';
 import 'features/donor/home/domain/usecases/get_donations_request.dart';
+import 'features/donor/home/domain/usecases/create_solicitud.dart';
 import 'features/volunteer/data/datasources/inventory_remote_data_source.dart';
 import 'features/volunteer/data/repositories/inventory_repository_impl.dart';
 import 'features/volunteer/domain/repositories/inventory_repository.dart';
@@ -23,6 +24,7 @@ Future<void> init() async {
   // // Use cases
   sl.registerLazySingleton(() => GetDonationsRequest(sl()));
   sl.registerLazySingleton(() => GetCampaigns(sl()));
+  sl.registerLazySingleton(() => CreateSolicitud(sl()));
   // sl.registerLazySingleton(() => GetShelves(sl()));
   // sl.registerLazySingleton(() => GetDonations(sl()));
   // sl.registerLazySingleton(() => UpdateDonationStatus(sl()));

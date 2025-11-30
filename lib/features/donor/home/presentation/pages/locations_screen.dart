@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../../core/theme/adminlte_theme.dart';
+import '../../../../../core/widgets/adminlte_widgets.dart';
 
 class LocationsScreen extends StatefulWidget {
   const LocationsScreen({super.key});
@@ -22,6 +24,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
   }
 
   Future<void> _loadLocations() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     try {
@@ -57,7 +60,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
             'latitud': punto['latitud'] != null ? double.tryParse(punto['latitud'].toString()) : null,
             'longitud': punto['longitud'] != null ? double.tryParse(punto['longitud'].toString()) : null,
             'tipo': 'Punto de Recolección',
-            'color': const Color(0xFF2A9D8F),
+            'color': AdminLTETheme.info,
             'icon': Icons.recycling,
           });
         }
@@ -72,23 +75,35 @@ class _LocationsScreenState extends State<LocationsScreen> {
             'latitud': almacen['latitud'] != null ? double.tryParse(almacen['latitud'].toString()) : null,
             'longitud': almacen['longitud'] != null ? double.tryParse(almacen['longitud'].toString()) : null,
             'tipo': 'Almacén',
-            'color': const Color(0xFFE63946),
+            'color': AdminLTETheme.danger,
             'icon': Icons.warehouse,
           });
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _locations = locations;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al cargar ubicaciones: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: AdminLTETheme.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Error al cargar ubicaciones: $e')),
+              ],
+            ),
+            backgroundColor: AdminLTETheme.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+            ),
           ),
         );
       }
@@ -98,9 +113,19 @@ class _LocationsScreenState extends State<LocationsScreen> {
   Future<void> _openInMaps(double? lat, double? lng, String nombre) async {
     if (lat == null || lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Coordenadas no disponibles para esta ubicación'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning, color: AdminLTETheme.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Coordenadas no disponibles para esta ubicación')),
+            ],
+          ),
+          backgroundColor: AdminLTETheme.warning,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+          ),
         ),
       );
       return;
@@ -112,9 +137,19 @@ class _LocationsScreenState extends State<LocationsScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo abrir el mapa'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error, color: AdminLTETheme.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('No se pudo abrir el mapa')),
+              ],
+            ),
+            backgroundColor: AdminLTETheme.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+            ),
           ),
         );
       }
@@ -124,173 +159,183 @@ class _LocationsScreenState extends State<LocationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000814),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000814),
-        elevation: 0,
-        title: const Text(
-          'Ubicaciones',
-          style: TextStyle(
-            color: Color(0xFFFFC300),
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFFFFC300)),
-            onPressed: _loadLocations,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFC300)),
-              ),
-            )
-          : _locations.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.location_off,
-                        size: 80,
-                        color: Colors.white.withOpacity(0.3),
+      backgroundColor: AdminLTETheme.backgroundColor,
+      body: Column(
+        children: [
+          // Header con estadísticas
+          Container(
+            padding: const EdgeInsets.all(AdminLTETheme.paddingMedium),
+            decoration: BoxDecoration(
+              color: AdminLTETheme.white,
+              boxShadow: AdminLTETheme.cardShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Ubicaciones',
+                      style: AdminLTETheme.h4,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: AdminLTETheme.primary),
+                      onPressed: _loadLocations,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AdminLTEInfoBox(
+                        title: 'Total',
+                        value: '${_locations.length}',
+                        icon: Icons.location_on,
+                        color: AdminLTETheme.primary,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No hay ubicaciones disponibles',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadLocations,
-                  color: const Color(0xFFFFC300),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _locations.length,
-                    itemBuilder: (context, index) {
-                      final location = _locations[index];
-                      final hasCoordinates = location['latitud'] != null && 
-                                           location['longitud'] != null;
-                      
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: location['color'].withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Lista de ubicaciones
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AdminLTETheme.primary),
+                    ),
+                  )
+                : _locations.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: 80,
+                              color: AdminLTETheme.textMuted,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No hay ubicaciones disponibles',
+                              style: TextStyle(
+                                color: AdminLTETheme.textMuted,
+                                fontSize: 16,
+                              ),
                             ),
                           ],
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: hasCoordinates
-                                ? () => _openInMaps(
-                                      location['latitud'],
-                                      location['longitud'],
-                                      location['nombre'],
-                                    )
-                                : null,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: location['color'].withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      location['icon'],
-                                      color: location['color'],
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadLocations,
+                        color: AdminLTETheme.primary,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(AdminLTETheme.paddingMedium),
+                          itemCount: _locations.length,
+                          itemBuilder: (context, index) {
+                            final location = _locations[index];
+                            final hasCoordinates = location['latitud'] != null && 
+                                                 location['longitud'] != null;
+                            
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: AdminLTETheme.paddingMedium),
+                              decoration: AdminLTETheme.cardDecoration(),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: hasCoordinates
+                                      ? () => _openInMaps(
+                                            location['latitud'],
+                                            location['longitud'],
+                                            location['nombre'],
+                                          )
+                                      : null,
+                                  borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(AdminLTETheme.paddingMedium),
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          location['nombre'],
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF000814),
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: location['color'].withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          location['tipo'],
-                                          style: TextStyle(
-                                            fontSize: 12,
+                                          child: Icon(
+                                            location['icon'],
                                             color: location['color'],
-                                            fontWeight: FontWeight.w600,
+                                            size: 28,
                                           ),
                                         ),
-                                        if (location['direccion']
-                                            .toString()
-                                            .isNotEmpty) ...[
-                                          const SizedBox(height: 8),
-                                          Row(
+                                        const SizedBox(width: AdminLTETheme.paddingMedium),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              const Icon(
-                                                Icons.location_on,
-                                                size: 14,
-                                                color: Color(0xFF778DA9),
+                                              Text(
+                                                location['nombre'],
+                                                style: AdminLTETheme.h6,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  location['direccion'],
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    color: Color(0xFF778DA9),
-                                                  ),
+                                              const SizedBox(height: 4),
+                                              AdminLTEBadge(
+                                                text: location['tipo'],
+                                                color: location['color'],
+                                              ),
+                                              if (location['direccion']
+                                                  .toString()
+                                                  .isNotEmpty) ...[
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.location_on,
+                                                      size: 14,
+                                                      color: AdminLTETheme.textMuted,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Expanded(
+                                                      child: Text(
+                                                        location['direccion'],
+                                                        style: const TextStyle(
+                                                          fontSize: 13,
+                                                          color: AdminLTETheme.textSecondary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ),
+                                              ],
                                             ],
                                           ),
-                                        ],
+                                        ),
+                                        if (hasCoordinates)
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 16,
+                                            color: location['color'],
+                                          )
+                                        else
+                                          const Icon(
+                                            Icons.location_off,
+                                            size: 16,
+                                            color: AdminLTETheme.textMuted,
+                                          ),
                                       ],
                                     ),
                                   ),
-                                  if (hasCoordinates)
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 16,
-                                      color: location['color'],
-                                    )
-                                  else
-                                    const Icon(
-                                      Icons.location_off,
-                                      size: 16,
-                                      color: Color(0xFF778DA9),
-                                    ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }

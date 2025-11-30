@@ -9,7 +9,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../domain/entities/donation_request.dart';
+import '../../domain/entities/campaign.dart';
 import '../providers/donation_request_provider.dart';
+import '../providers/campaigns_provider.dart';
+import '../../../../../core/theme/adminlte_theme.dart';
+import '../../../../../core/widgets/adminlte_widgets.dart';
 
 // =============================================================================
 // DESIGN SYSTEM CONSTANTS
@@ -512,149 +516,94 @@ class _DonationsRequestScreenState extends ConsumerState<DonationsRequestScreen>
     final donationRequestState = ref.watch(donationRequestNotifierProvider);
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.background),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header con gradiente
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: AppGradients.primary,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(32),
-                    bottomRight: Radius.circular(32),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Título y acciones
-                      FadeTransition(
-                        opacity: _fadeController,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'Solicitudes de',
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.white.withOpacity(0.8),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Recolección',
-                                    style: AppTextStyles.titleMain.copyWith(
-                                      color: AppColors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Barra de búsqueda
-                      FadeTransition(
-                        opacity: _fadeController,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: AppShadows.standard,
-                          ),
-                          // child: TextField(
-                          //   controller: _searchController,
-                          //   onChanged: _onSearchChanged,
-                          //   decoration: InputDecoration(
-                          //     hintText: 'Buscar por donante o ubicación...',
-                          //     hintStyle: AppTextStyles.caption,
-                          //     prefixIcon: Icon(
-                          //       Icons.search,
-                          //       color: AppColors.lightBlue,
-                          //     ),
-                          //     suffixIcon: _searchController.text.isNotEmpty
-                          //         ? IconButton(
-                          //             onPressed: () {
-                          //               HapticFeedback.selectionClick();
-                          //               _searchController.clear();
-                          //               _onSearchChanged('');
-                          //             },
-                          //             icon: Icon(
-                          //               Icons.clear,
-                          //               color: AppColors.lightBlue,
-                          //             ),
-                          //           )
-                          //         : null,
-                          //     border: InputBorder.none,
-                          //     contentPadding: const EdgeInsets.symmetric(
-                          //       horizontal: 16,
-                          //       vertical: 16,
-                          //     ),
-                          //   ),
-                          //),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Contenido principal
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    if (donationRequestState.isLoadingDonationRequest) {
-                      return _buildLoadingState();
-                    } else if (donationRequestState.errorMessage != null) {
-                      return _buildErrorState(
-                        donationRequestState.errorMessage!,
-                      );
-                    } else if (donationRequestState.donationRequests.isEmpty) {
-                      return _buildEmptyState();
-                    } else {
-                      return _buildLoadedState(
-                        donationRequestState.donationRequests,
-                      );
-                    }
-                  },
-                ),
-              ),
-            ],
+      backgroundColor: AdminLTETheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text(
+          'Mis Solicitudes',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        backgroundColor: AdminLTETheme.navbarDark,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              ref
+                  .read(donationRequestNotifierProvider.notifier)
+                  .loadDonationRequests();
+            },
+            tooltip: 'Actualizar',
+          ),
+        ],
+      ),
+      body: Builder(
+        builder: (context) {
+          if (donationRequestState.isLoadingDonationRequest) {
+            return _buildLoadingState();
+          } else if (donationRequestState.errorMessage != null) {
+            return _buildErrorState(
+              donationRequestState.errorMessage!,
+            );
+          } else if (donationRequestState.donationRequests.isEmpty) {
+            return _buildEmptyState();
+          } else {
+            return _buildLoadedState(
+              donationRequestState.donationRequests,
+            );
+          }
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateRequestDialog(context),
+        backgroundColor: AdminLTETheme.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Nueva Solicitud',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
     );
   }
 
+  void _showCreateRequestDialog(BuildContext context) {
+    // Navegar a la pantalla de selección de campaña
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const CampaignSelectionScreen(),
+      ),
+    );
+  }
+
   Widget _buildLoadingState() {
     return Container(
-      decoration: const BoxDecoration(gradient: AppGradients.background),
+      color: AdminLTETheme.backgroundColor,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppShadows.standard,
-              ),
+              decoration: AdminLTETheme.cardDecoration(),
               child: CircularProgressIndicator(
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppColors.accent,
+                  AdminLTETheme.primary,
                 ),
                 strokeWidth: 3,
               ),
             ),
             const SizedBox(height: 24),
-            Text('Cargando solicitudes...', style: AppTextStyles.bodyText),
+            Text(
+              'Cargando solicitudes...',
+              style: AdminLTETheme.bodyText.copyWith(color: AdminLTETheme.textPrimary),
+            ),
           ],
         ),
       ),
@@ -673,8 +622,8 @@ class _DonationsRequestScreenState extends ConsumerState<DonationsRequestScreen>
             .read(donationRequestNotifierProvider.notifier)
             .loadDonationRequests();
       },
-      color: AppColors.accent,
-      backgroundColor: AppColors.white,
+      color: AdminLTETheme.primary,
+      backgroundColor: Colors.white,
       child: ListView.builder(
         padding: const EdgeInsets.all(24),
         itemCount: requests.length,
@@ -699,60 +648,38 @@ class _DonationsRequestScreenState extends ConsumerState<DonationsRequestScreen>
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppShadows.standard,
-              ),
+              decoration: AdminLTETheme.cardDecoration(),
               child: Column(
                 children: [
                   Icon(
                     Icons.inbox_outlined,
                     size: 64,
-                    color: AppColors.lightBlue,
+                    color: AdminLTETheme.info,
                   ),
                   const SizedBox(height: 16),
-                  Text('No hay solicitudes', style: AppTextStyles.subtitle),
+                  Text(
+                    'No hay solicitudes',
+                    style: AdminLTETheme.h5.copyWith(color: AdminLTETheme.textPrimary),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'No se encontraron solicitudes de recolección en este momento.',
-                    style: AppTextStyles.caption,
+                    style: AdminLTETheme.caption.copyWith(color: AdminLTETheme.textSecondary),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                gradient: AppGradients.button,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.button,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    ref
-                        .read(donationRequestNotifierProvider.notifier)
-                        .loadDonationRequests();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    child: Text(
-                      'Actualizar',
-                      style: AppTextStyles.subtitle.copyWith(
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            AdminLTEButton(
+              text: 'Actualizar',
+              icon: Icons.refresh,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                ref
+                    .read(donationRequestNotifierProvider.notifier)
+                    .loadDonationRequests();
+              },
             ),
           ],
         ),
@@ -767,62 +694,22 @@ class _DonationsRequestScreenState extends ConsumerState<DonationsRequestScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppShadows.standard,
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: AppColors.errorColor,
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Error al cargar', style: AppTextStyles.subtitle),
-                  const SizedBox(height: 8),
-                  Text(
-                    message,
-                    style: AppTextStyles.caption,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+            AdminLTEAlert(
+              message: message,
+              icon: Icons.error_outline,
+              color: AdminLTETheme.danger,
             ),
             const SizedBox(height: 24),
-            Container(
-              decoration: BoxDecoration(
-                gradient: AppGradients.button,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppShadows.button,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    ref
-                        .read(donationRequestNotifierProvider.notifier)
-                        .loadDonationRequests();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    child: Text(
-                      'Reintentar',
-                      style: AppTextStyles.subtitle.copyWith(
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            AdminLTEButton(
+              text: 'Reintentar',
+              icon: Icons.refresh,
+              color: AdminLTETheme.primary,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                ref
+                    .read(donationRequestNotifierProvider.notifier)
+                    .loadDonationRequests();
+              },
             ),
           ],
         ),
@@ -879,18 +766,392 @@ class DonationRequestDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: AdminLTETheme.backgroundColor,
       appBar: AppBar(
         title: Text('Detalle de Solicitud'),
-        backgroundColor: AppColors.primaryDark,
-        foregroundColor: AppColors.white,
+        backgroundColor: AdminLTETheme.navbarDark,
+        foregroundColor: Colors.white,
       ),
       body: Center(
         child: Text(
           'Detalle de la solicitud #${request.requestId}',
-          style: AppTextStyles.titleMain,
+          style: AdminLTETheme.h4,
         ),
       ),
     );
   }
 }
+
+// =============================================================================
+// CAMPAIGN SELECTION SCREEN
+// =============================================================================
+
+class CampaignSelectionScreen extends ConsumerStatefulWidget {
+  const CampaignSelectionScreen({super.key});
+
+  @override
+  ConsumerState<CampaignSelectionScreen> createState() =>
+      _CampaignSelectionScreenState();
+}
+
+class _CampaignSelectionScreenState
+    extends ConsumerState<CampaignSelectionScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Cargar campañas
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(campaignsNotifierProvider.notifier).loadCampaigns();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final campaignsState = ref.watch(campaignsNotifierProvider);
+
+    return Scaffold(
+      backgroundColor: AdminLTETheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text(
+          'Seleccionar Campaña',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: AdminLTETheme.navbarDark,
+        foregroundColor: Colors.white,
+      ),
+      body: Builder(
+        builder: (context) {
+          if (campaignsState.isLoadingCampaigns) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AdminLTETheme.primary),
+              ),
+            );
+          } else if (campaignsState.errorMessage != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: AdminLTEAlert(
+                  message: campaignsState.errorMessage!,
+                  icon: Icons.error_outline,
+                  color: AdminLTETheme.danger,
+                ),
+              ),
+            );
+          } else if (campaignsState.campaigns.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.campaign_outlined,
+                      size: 64,
+                      color: AdminLTETheme.info,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay campañas disponibles',
+                      style: AdminLTETheme.h5,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: campaignsState.campaigns.length,
+            itemBuilder: (context, index) {
+              final campaign = campaignsState.campaigns[index];
+              return _buildCampaignCard(context, campaign);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCampaignCard(BuildContext context, Campaign campaign) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+      ),
+      elevation: 2,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => CreateRequestScreen(campaign: campaign),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(AdminLTETheme.cardBorderRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AdminLTETheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.campaign,
+                  color: AdminLTETheme.primary,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      campaign.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AdminLTETheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      campaign.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AdminLTETheme.textSecondary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: AdminLTETheme.textSecondary,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// CREATE REQUEST SCREEN
+// =============================================================================
+
+class CreateRequestScreen extends ConsumerStatefulWidget {
+  final Campaign campaign;
+
+  const CreateRequestScreen({super.key, required this.campaign});
+
+  @override
+  ConsumerState<CreateRequestScreen> createState() =>
+      _CreateRequestScreenState();
+}
+
+class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _ubicacionController = TextEditingController();
+  final _detalleController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _ubicacionController.dispose();
+    _detalleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRequest() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+
+    await ref.read(donationRequestNotifierProvider.notifier).createDonationRequest(
+          ubicacion: _ubicacionController.text.trim(),
+          detalleSolicitud: _detalleController.text.trim(),
+          idCampana: widget.campaign.id,
+        );
+
+    final state = ref.read(donationRequestNotifierProvider);
+
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+
+      if (state.successMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(state.successMessage!)),
+              ],
+            ),
+            backgroundColor: AdminLTETheme.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Volver a la pantalla anterior (2 veces para salir de selección y creación)
+        Navigator.of(context).pop();
+        Navigator.of(context).pop();
+      } else if (state.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(state.errorMessage!)),
+              ],
+            ),
+            backgroundColor: AdminLTETheme.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AdminLTETheme.backgroundColor,
+      appBar: AppBar(
+        title: const Text(
+          'Nueva Solicitud',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: AdminLTETheme.navbarDark,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info de campaña
+              AdminLTECard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.campaign, color: AdminLTETheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Campaña Seleccionada',
+                          style: AdminLTETheme.h6,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.campaign.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.campaign.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AdminLTETheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Formulario
+              Text(
+                'Datos de la Solicitud',
+                style: AdminLTETheme.h6,
+              ),
+              const SizedBox(height: 12),
+
+              // Campo Ubicación
+              TextFormField(
+                controller: _ubicacionController,
+                decoration: InputDecoration(
+                  labelText: 'Ubicación *',
+                  hintText: 'Ej: Calle 123, Barrio Centro',
+                  prefixIcon: const Icon(Icons.location_on),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AdminLTETheme.inputBorderRadius,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'La ubicación es requerida';
+                  }
+                  return null;
+                },
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // Campo Detalle
+              TextFormField(
+                controller: _detalleController,
+                decoration: InputDecoration(
+                  labelText: 'Detalle de la donación *',
+                  hintText: 'Describe qué deseas donar',
+                  prefixIcon: const Icon(Icons.description),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AdminLTETheme.inputBorderRadius,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'El detalle es requerido';
+                  }
+                  return null;
+                },
+                maxLines: 4,
+              ),
+              const SizedBox(height: 24),
+
+              // Botón enviar
+              SizedBox(
+                width: double.infinity,
+                child: AdminLTEButton(
+                  text: _isSubmitting ? 'Enviando...' : 'Enviar Solicitud',
+                  icon: _isSubmitting ? null : Icons.send,
+                  onPressed: _isSubmitting ? null : _submitRequest,
+                  block: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

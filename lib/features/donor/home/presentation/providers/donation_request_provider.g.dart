@@ -25,6 +25,23 @@ final getDonationsRequestProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef GetDonationsRequestRef = AutoDisposeProviderRef<GetDonationsRequest>;
+String _$createSolicitudHash() => r'f1e77aa5e04f375ee652e54bb66861e427da18b2';
+
+/// See also [createSolicitud].
+@ProviderFor(createSolicitud)
+final createSolicitudProvider = AutoDisposeProvider<CreateSolicitud>.internal(
+  createSolicitud,
+  name: r'createSolicitudProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$createSolicitudHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef CreateSolicitudRef = AutoDisposeProviderRef<CreateSolicitud>;
 String _$isLoadingDonationRequestHash() =>
     r'5494c876f5f6b1712d8ae099a87ffb6b560fb4fc';
 
@@ -62,7 +79,7 @@ final donationRequestsProvider =
 // ignore: unused_element
 typedef DonationRequestsRef = AutoDisposeProviderRef<List<DonationRequest>>;
 String _$donationRequestNotifierHash() =>
-    r'e16e45304d366360234cea15746d1ddf113b10cc';
+    r'3c157a7a99bc5d4c335a7f6b22afe0f6db983a6d';
 
 /// See also [DonationRequestNotifier].
 @ProviderFor(DonationRequestNotifier)

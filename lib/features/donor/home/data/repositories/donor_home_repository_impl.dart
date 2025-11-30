@@ -45,4 +45,32 @@ class DonorHomeRepositoryImpl implements DonorHomeRepository {
       return Left(ServerFailure('Unexpected error'));
     }
   }
+
+  @override
+  Future<Either<Failure, DonationRequest>> createSolicitud({
+    required String ubicacion,
+    required String detalleSolicitud,
+    required int idDonante,
+    required int idCampana,
+  }) async {
+    try {
+      final solicitud = await remoteDataSource.createSolicitud(
+        ubicacion: ubicacion,
+        detalleSolicitud: detalleSolicitud,
+        idDonante: idDonante,
+        idCampana: idCampana,
+      );
+      return Right(solicitud);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on TokenExpiredException catch (e) {
+      return Left(AuthenticationFailure(e.message));
+    } catch (e, stack) {
+      print('Error inesperado en createSolicitud: $e');
+      print('Stack: $stack');
+      return Left(ServerFailure('Error al crear la solicitud'));
+    }
+  }
 }

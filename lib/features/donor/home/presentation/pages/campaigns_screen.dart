@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/constants/colors.dart';
 import 'donation_money_screen.dart';
 import 'donation_request_screen.dart';
-import '../../../map/presentation/pages/map_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -412,41 +411,7 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                       ),
                     ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            pageBuilder:
-                                (context, animation, secondaryAnimation) =>
-                                    MapScreen(campaignId: campaign.id),
-                            transitionsBuilder:
-                                (
-                                  context,
-                                  animation,
-                                  secondaryAnimation,
-                                  child,
-                                ) {
-                                  return SlideTransition(
-                                    position: animation.drive(
-                                      Tween(
-                                        begin: const Offset(1.0, 0.0),
-                                        end: Offset.zero,
-                                      ),
-                                    ),
-                                    child: child,
-                                  );
-                                },
-                            transitionDuration: const Duration(
-                              milliseconds: 300,
-                            ),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: Column(
+                  child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Imagen de la campaña
@@ -774,8 +739,6 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                           ),
                         ],
                       ),
-                    ),
-                  ),
                 ),
               ),
             );

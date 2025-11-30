@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/features/auth/presentation/pages/login_type_screen.dart';
+import '/features/auth/presentation/pages/login_screen.dart';
 import '/features/main/presentation/pages/main_screen.dart';
 import '/features/main/presentation/pages/volunteer_main_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,7 +47,7 @@ class AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (!isLoggedIn) {
-      return LoginTypeScreen();
+      return LoginScreen(userType: 'donante');
     }
 
     return userType == 'donante' ? MainScreen() : VolunteerMainScreen();
