@@ -1,21 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:dio/dio.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_donaciones_1/core/network/dio_client.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
-
-import '../../../../../injection_container.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DonationMoneyPage extends StatefulWidget {
   const DonationMoneyPage({super.key, required this.campaignId});
@@ -25,41 +22,18 @@ class DonationMoneyPage extends StatefulWidget {
   DonationMoneyPageState createState() => DonationMoneyPageState();
 }
 
-class DonationMoneyPageState extends State<DonationMoneyPage>
-    with TickerProviderStateMixin {
+class DonationMoneyPageState extends State<DonationMoneyPage> {
   final _montoController = TextEditingController();
-  final _nombreCuentaController = TextEditingController();
-  final _numeroCuentaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _montoFormKey = GlobalKey<FormState>();
-
-  // GlobalKey para capturar el QR como imagen
   final GlobalKey _qrKey = GlobalKey();
 
-  File? _imageFile;
-  String? _selectedDivisa;
+  File? _comprobanteFile;
   bool _isLoading = false;
   bool _isDownloading = false;
-  final List<String> _divisas = ['BS'];
   String? _qrData;
+  int _currentStep = 0;
 
-  // Estados para controlar la visibilidad de los formularios
-  bool _showMontoForm = true;
-  bool _showQRForm = false;
-  bool _showDatosForm = false;
-
-  // Controladores de animación
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-
-  // Controladores para las animaciones de los formularios
-  late AnimationController _montoFormController;
-  late AnimationController _qrFormController;
-  late AnimationController _datosFormController;
-  late Animation<Offset> _montoFormAnimation;
-  late Animation<Offset> _datosFormAnimation;
-
-  // Paleta de colores consistente
+  // Colores
   static const Color primaryDark = Color(0xFF0D1B2A);
   static const Color primaryBlue = Color(0xFF1B263B);
   static const Color accentBlue = Color(0xFF415A77);
@@ -71,451 +45,109 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
   static const Color successColor = Color(0xFF2A9D8F);
 
   @override
-  void initState() {
-    super.initState();
-    _initAnimations();
-  }
-
-  void _initAnimations() {
-    // Animaciones principales
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    // Animaciones para los formularios
-    _montoFormController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _qrFormController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _datosFormController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _montoFormAnimation =
-        Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _montoFormController,
-            curve: Curves.elasticOut,
-          ),
-        );
-
-    _datosFormAnimation =
-        Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _datosFormController,
-            curve: Curves.elasticOut,
-          ),
-        );
-
-    _fadeController.forward();
-    _slideController.forward();
-    _montoFormController.forward();
-  }
-
-  @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _montoFormController.dispose();
-    _qrFormController.dispose();
-    _datosFormController.dispose();
     _montoController.dispose();
-    _nombreCuentaController.dispose();
-    _numeroCuentaController.dispose();
     super.dispose();
   }
 
-  // Método para guardar el QR en la galería de fotos
-  Future<void> _downloadQR() async {
-    if (_qrData == null) {
-      _showErrorSnackBar('No hay código QR para descargar');
-      return;
-    }
-
-    setState(() {
-      _isDownloading = true;
-    });
-
-    try {
-      // Verificar si tenemos permisos para acceder a la galería
-      bool hasAccess = await Gal.hasAccess();
-      if (!hasAccess) {
-        // Solicitar permisos
-        hasAccess = await Gal.requestAccess();
-        if (!hasAccess) {
-          _showErrorSnackBar(
-            'Se necesitan permisos para guardar en la galería',
-          );
-          setState(() {
-            _isDownloading = false;
-          });
-          return;
-        }
-      }
-
-      // Capturar el widget QR como imagen
-      RenderRepaintBoundary boundary =
-          _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      // Crear archivo temporal
-      Directory tempDir = await getTemporaryDirectory();
-      String fileName =
-          'qr_donacion_${_montoController.text}BS_${DateTime.now().millisecondsSinceEpoch}.png';
-      File tempFile = File('${tempDir.path}/$fileName');
-      await tempFile.writeAsBytes(pngBytes);
-
-      // Guardar en la galería usando Gal
-      await Gal.putImage(tempFile.path, album: 'QR Donaciones');
-
-      // Limpiar archivo temporal
-      await tempFile.delete();
-
-      _showSuccessSnackBar('✅ QR guardado en tu galería de fotos');
-      _showGallerySuccessDialog();
-
-      // Vibración de éxito
-      HapticFeedback.heavyImpact();
-    } catch (e) {
-      print('Error al guardar QR en galería: $e');
-      _showErrorSnackBar('Error al guardar en galería: $e');
-    } finally {
+  void _generateQR() {
+    if (_formKey.currentState!.validate()) {
+      HapticFeedback.mediumImpact();
+      final monto = _montoController.text;
+      // Generar datos del QR con información de pago
+      final qrInfo = {
+        'monto': monto,
+        'moneda': 'BOB',
+        'concepto': 'Donación',
+        'id_campana': widget.campaignId,
+      };
       setState(() {
-        _isDownloading = false;
+        _qrData = json.encode(qrInfo);
+        _currentStep = 1;
       });
     }
   }
 
-  // Método alternativo para directorio de app (por si falla la galería)
-  Future<void> _saveQRToAppDirectory() async {
-    if (_qrData == null) {
-      _showErrorSnackBar('No hay código QR para guardar');
-      return;
-    }
-
-    setState(() {
-      _isDownloading = true;
-    });
-
+  Future<void> _pickComprobante() async {
     try {
-      // Capturar el widget QR como imagen
-      RenderRepaintBoundary boundary =
-          _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      // Obtener directorio accesible sin permisos
-      Directory? directory;
-      String directoryName = '';
-
-      if (Platform.isAndroid) {
-        // Usar directorio externo de la app (no requiere permisos)
-        directory = await getExternalStorageDirectory();
-        directoryName = 'Almacenamiento externo de la app';
-      } else {
-        // Para iOS usar directorio de documentos
-        directory = await getApplicationDocumentsDirectory();
-        directoryName = 'Documentos de la app';
-      }
-
-      if (directory != null) {
-        // Crear subdirectorio para QRs si no existe
-        Directory qrDirectory = Directory('${directory.path}/QR_Donaciones');
-        if (!await qrDirectory.exists()) {
-          await qrDirectory.create(recursive: true);
-        }
-
-        String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-        String fileName =
-            'qr_donacion_${_montoController.text}BS_$timestamp.png';
-        File file = File('${qrDirectory.path}/$fileName');
-
-        await file.writeAsBytes(pngBytes);
-
-        _showSuccessSnackBar('QR guardado en $directoryName/QR_Donaciones/');
-
-        // Vibración de éxito
-        HapticFeedback.heavyImpact();
-
-        // Mostrar dialog con la ubicación del archivo
-        _showFileLocationDialog(file.path);
-      } else {
-        _showErrorSnackBar(
-          'No se pudo acceder al directorio de almacenamiento',
-        );
-      }
-    } catch (e) {
-      print('Error al descargar QR: $e');
-      _showErrorSnackBar('Error al guardar QR: $e');
-    } finally {
-      setState(() {
-        _isDownloading = false;
-      });
-    }
-  }
-
-  // Mostrar diálogo de éxito para galería
-  void _showGallerySuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.photo_library, color: successColor, size: 28),
-              const SizedBox(width: 12),
-              const Text(
-                'QR en tu Galería',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '¡Perfecto! El código QR se ha guardado en tu galería de fotos.',
-                style: TextStyle(fontSize: 16, color: accentBlue),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: successColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: successColor.withOpacity(0.3)),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.photo_album, color: successColor, size: 32),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Abre tu app de "Fotos" o "Galería" para verlo',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: primaryDark,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Se guardó en el álbum "QR Donaciones"',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: lightBlue,
-                        fontStyle: FontStyle.italic,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: successColor,
-                  foregroundColor: white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  '¡Genial!',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Mostrar diálogo con la ubicación del archivo
-  void _showFileLocationDialog(String filePath) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: successColor, size: 28),
-              const SizedBox(width: 12),
-              const Text(
-                'QR Guardado',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'El código QR se ha guardado exitosamente en:',
-                style: TextStyle(fontSize: 16, color: accentBlue),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cream.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  filePath,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: primaryDark,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Puedes acceder al archivo desde el explorador de archivos de tu dispositivo.',
-                style: TextStyle(fontSize: 14, color: lightBlue),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              child: Text(
-                'Entendido',
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _pickImage() async {
-    HapticFeedback.selectionClick();
-
-    try {
-      final picker = ImagePicker();
+      final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
+        maxWidth: 1920,
+        maxHeight: 1080,
         imageQuality: 85,
       );
 
       if (image != null) {
+        HapticFeedback.lightImpact();
         setState(() {
-          _imageFile = File(image.path);
+          _comprobanteFile = File(image.path);
         });
-        print('Comprobante seleccionado: ${image.path}');
-        _showSuccessSnackBar('Comprobante seleccionado correctamente');
       }
     } catch (e) {
       _showErrorSnackBar('Error al seleccionar imagen: $e');
     }
   }
 
-  Future<void> _donateMoney() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+  Future<void> _downloadQR() async {
+    setState(() {
+      _isDownloading = true;
+    });
 
-    if (token == null) {
+    try {
+      HapticFeedback.mediumImpact();
+      final RenderRepaintBoundary boundary =
+          _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      final Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath =
+          '${tempDir.path}/qr_donacion_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File file = File(filePath);
+      await file.writeAsBytes(pngBytes);
+
+      await Gal.putImage(file.path);
+
+      if (mounted) {
+        _showSuccessSnackBar('QR guardado en la galería');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al guardar QR: $e');
+      }
+      _showErrorSnackBar('Error al guardar QR');
+    } finally {
       setState(() {
-        _isLoading = false;
+        _isDownloading = false;
       });
+    }
+  }
+
+  Future<void> _submitDonation() async {
+    if (_comprobanteFile == null) {
+      _showErrorSnackBar('Por favor sube el comprobante de pago');
       return;
     }
 
-    if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact();
-      return;
-    }
-
-    if (_imageFile == null) {
-      _showErrorSnackBar('Por favor selecciona un comprobante');
-      return;
-    }
-
-    HapticFeedback.lightImpact();
     setState(() {
       _isLoading = true;
     });
 
     try {
-      FormData formData = FormData.fromMap({
-        "imagen": await MultipartFile.fromFile(
-          _imageFile!.path,
-          filename: "comprobante.jpg",
-        ),
-      });
-      final responseImage = await sl<DioClient>().post(
-        "/upload",
-        data: formData,
-      );
-      final responseBodyImageUrl = responseImage.data;
-      print(
-        'Procesando imagen: ${responseBodyImageUrl['message'] ?? responseBodyImageUrl['error'] ?? 'Error desconocido'}',
-      );
-      if (responseImage.statusCode != 201) {
-        _showErrorSnackBar(
-          'Error al procesar imagen: ${responseBodyImageUrl['message'] ?? responseBodyImageUrl['error'] ?? 'Error desconocido'}',
-        );
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final donanteId = prefs.getInt('donante_id');
+
+      if (token == null || donanteId == null) {
+        _showErrorSnackBar('Error de autenticación');
         return;
       }
 
-      final response = await http.post(
+      // 1. Crear la donación principal
+      final donacionResponse = await http.post(
         Uri.parse('http://10.0.2.2:8000/api/donaciones'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -524,58 +156,73 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
         body: json.encode({
           'tipo_donacion': 'dinero',
           'fecha_donacion': DateTime.now().toIso8601String(),
-          'id_donante': prefs.getInt('donante_id').toString(),
+          'id_donante': donanteId,
           'id_campana': widget.campaignId,
         }),
       );
-      final responseBody = json.decode(response.body);
-      if (kDebugMode) {
-        print(
-          'Procesando donación: ${responseBody['message'] ?? responseBody['error'] ?? 'Error desconocido'}',
-        );
-      }
-      if (response.statusCode != 201) {
+
+      if (donacionResponse.statusCode != 201) {
+        final error = json.decode(donacionResponse.body);
         _showErrorSnackBar(
-          'Error al procesar donación: ${responseBody['message'] ?? responseBody['error'] ?? 'Error desconocido'}',
-        );
+            'Error al crear donación: ${error['message'] ?? 'Error desconocido'}');
         return;
       }
 
-      print('Donación procesada exitosamente: ${responseBody ?? 'Correcto'}');
+      final donacionData = json.decode(donacionResponse.body);
+      final idDonacion = donacionData['id'];
 
-      final responseMoney = await http.put(
-        Uri.parse(
-          'http://10.0.2.2:8000/api/donaciones-en-dinero/${responseBody['id']}',
-        ),
+      // 2. Subir comprobante
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://10.0.2.2:8000/api/upload-comprobante'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('comprobante', _comprobanteFile!.path),
+      );
+
+      final uploadResponse = await request.send();
+      final uploadResponseBody = await uploadResponse.stream.bytesToString();
+      
+      if (uploadResponse.statusCode != 200) {
+        _showErrorSnackBar('Error al subir comprobante');
+        return;
+      }
+
+      final uploadData = json.decode(uploadResponseBody);
+      final comprobanteUrl = uploadData['path'];
+
+      // 3. Crear donación en dinero
+      final dineroResponse = await http.post(
+        Uri.parse('http://10.0.2.2:8000/api/donaciones-en-dinero'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'monto': _montoController.text,
-          'divisa': 'BS',
-          'nombre_cuenta': _nombreCuentaController.text,
-          'numero_cuenta': _numeroCuentaController.text,
-          'comprobante_url': base64.encode(_imageFile!.readAsBytesSync()),
-          'estado_validacion': 'pendiente',
+          'id_donacion': idDonacion,
+          'monto': double.parse(_montoController.text),
+          'moneda': 'BOB',
+          'metodo_pago': 'Pasarela',
+          'referencia_pago': comprobanteUrl,
+          'estado': 'pendiente',
         }),
       );
 
-      final responseMoneyBody = json.decode(responseMoney.body);
-      if (responseMoney.statusCode != 200) {
+      if (dineroResponse.statusCode != 201 && dineroResponse.statusCode != 200) {
+        final error = json.decode(dineroResponse.body);
         _showErrorSnackBar(
-          'Error al procesar donación en dinero: ${responseMoneyBody['message'] ?? responseMoneyBody['error'] ?? 'Error desconocido'}',
-        );
+            'Error al registrar donación: ${error['message'] ?? 'Error desconocido'}');
         return;
       }
 
-      print(
-        'Donación en dinero procesada exitosamente: ${responseMoneyBody['message'] ?? 'Correcto'} - ${responseMoney.statusCode}',
-      );
-      if (!mounted) return;
-
-      _showSuccessDialog();
+      if (mounted) {
+        _showSuccessDialog();
+      }
     } catch (e) {
+      if (kDebugMode) {
+        print('Error al procesar donación: $e');
+      }
       _showErrorSnackBar('Error al procesar donación: $e');
     } finally {
       if (mounted) {
@@ -586,107 +233,90 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
     }
   }
 
-  Future<void> _openImagePicker(File image) async {
-    return showDialog<void>(
+  void _showSuccessDialog() {
+    showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Comprobante seleccionado',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            color: Colors.grey[200],
-            constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
-            child: Image.file(
-              image,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(child: Text('No se pudo cargar la imagen'));
-              },
+        backgroundColor: white,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: successColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: successColor,
+                size: 64,
+              ),
             ),
-          ),
-        ),
-        contentPadding: const EdgeInsets.all(20),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: accent),
-                      ),
-                    ),
-                    child: Text(
-                      'Atrás',
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+            const SizedBox(height: 24),
+            const Text(
+              '¡Donación registrada!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: primaryDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tu donación ha sido registrada exitosamente. Será revisada por nuestro equipo.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: accentBlue,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: primaryDark,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _imageFile = null;
-                      });
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: primaryDark,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Quitar',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                child: const Text(
+                  'Volver',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   void _showErrorSnackBar(String message) {
-    print('Error: $message');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: white),
+            const Icon(Icons.error_outline, color: white),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(message, style: const TextStyle(color: white)),
-            ),
+            Expanded(child: Text(message)),
           ],
         ),
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -696,608 +326,14 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle_outline, color: white),
+            const Icon(Icons.check_circle_outline, color: white),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(message, style: const TextStyle(color: white)),
-            ),
+            Expanded(child: Text(message)),
           ],
         ),
         backgroundColor: successColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: successColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.volunteer_activism_rounded,
-                  color: successColor,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                '¡Donación Exitosa!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Tu donación ha sido registrada correctamente. ¡Gracias por tu generosidad!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: accentBlue, height: 1.4),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: primaryDark,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Continuar',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCustomTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        validator: validator,
-        style: const TextStyle(
-          fontSize: 16,
-          color: primaryDark,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: lightBlue,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
-          filled: true,
-          fillColor: cream.withOpacity(0.5),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: accent, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: errorColor, width: 2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: errorColor, width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomDropdown() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: DropdownButtonFormField<String>(
-        value: _selectedDivisa,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor selecciona una divisa';
-          }
-          return null;
-        },
-        decoration: InputDecoration(
-          labelText: 'Divisa',
-          labelStyle: TextStyle(
-            color: lightBlue,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.compare_arrows, color: accent, size: 30),
-          ),
-          filled: true,
-          fillColor: cream.withOpacity(0.5),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: accent, width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
-          ),
-        ),
-        items: _divisas.map((String divisa) {
-          return DropdownMenuItem<String>(
-            value: divisa,
-            child: Text(
-              divisa,
-              style: const TextStyle(
-                color: primaryDark,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          );
-        }).toList(),
-        onChanged: (String? newValue) {
-          HapticFeedback.selectionClick();
-          setState(() {
-            _selectedDivisa = newValue;
-          });
-        },
-        dropdownColor: white,
-        icon: Icon(Icons.keyboard_arrow_down_rounded, color: lightBlue),
-      ),
-    );
-  }
-
-  Future<void> _handleGenerateQR() async {
-    if (_montoFormKey.currentState!.validate()) {
-      await _generateQR();
-      if (_qrData != null) {
-        setState(() {
-          _showMontoForm = false;
-          _showDatosForm = true;
-        });
-        _datosFormController.forward();
-      }
-    }
-  }
-
-  void _handleBack() {
-    if (_showDatosForm) {
-      setState(() {
-        _showDatosForm = false;
-        _showMontoForm = true;
-      });
-    } else if (_showQRForm) {
-      setState(() {
-        _showQRForm = false;
-        _showMontoForm = true;
-      });
-    }
-  }
-
-  Future<void> _generateQR() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final response = await http.post(
-        Uri.parse('https://devbol.com/api/create'),
-        headers: {
-          'Authorization':
-              'Basic ${base64Encode(utf8.encode('admin:secreto123'))}',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'monto': double.parse(_montoController.text)}),
-      );
-
-      print('Status Code: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        List<int> bytes = base64.decode(data['cadena_base64']);
-        String decodedText = utf8.decode(bytes);
-
-        print('Base64 recibido (original): $decodedText');
-
-        // Ejemplo: TRANSACCION:684bd84eb6421|MONTO:200
-
-        // Limpiar y dar formato bonito
-        String textoLimpio =
-            '${decodedText.replaceAll(':', ' =>') // TRANSACCION => 684bd...
-            .replaceAll('|', '||') // Salto de línea entre campos
-            .replaceAllMapped(RegExp(r'[^\x20-\x7E]'), (m) => '')}Bs'; // elimina no ASCII
-
-        setState(() {
-          _qrData = textoLimpio;
-        });
-      } else {
-        _showErrorSnackBar('Error al generar el QR: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error al generar el QR: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Widget _buildMontoForm() {
-    return SlideTransition(
-      position: _montoFormAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: primaryDark.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Form(
-          key: _montoFormKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Ingrese el Monto',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildCustomTextField(
-                controller: _montoController,
-                label: 'Monto',
-                icon: Icons.money,
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa un monto';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Por favor ingresa un monto válido';
-                  }
-                  if (double.parse(value) <= 0) {
-                    return 'El monto debe ser mayor a 0';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildCustomDropdown(),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleGenerateQR,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: primaryDark,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              primaryDark,
-                            ),
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Text(
-                          'Generar QR',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDatosForm() {
-    return SlideTransition(
-      position: _datosFormAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: primaryDark.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Código QR Generado',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (_qrData != null)
-                RepaintBoundary(
-                  key: _qrKey,
-                  child: Container(
-                    height: 200,
-                    width: 200,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: PrettyQrView.data(
-                      data: _qrData!,
-                      decoration: const PrettyQrDecoration(
-                        shape: PrettyQrSmoothSymbol(color: primaryDark),
-                      ),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-
-              // Botón de descarga del QR
-              if (_qrData != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isDownloading ? null : _downloadQR,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: successColor,
-                      foregroundColor: white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: _isDownloading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(white),
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Icon(Icons.download_rounded, size: 20),
-                    label: Text(
-                      _isDownloading ? 'Descargando...' : 'Descargar QR',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 16),
-
-              // Cargar el comprobante
-              GestureDetector(
-                onTap: () {
-                  if (_imageFile == null) {
-                    _pickImage(); // Selecciona imagen
-                  } else {
-                    _openImagePicker(_imageFile!); // Muestra imagen ya cargada
-                  }
-                },
-                child: Container(
-                  height: 50,
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color.fromARGB(38, 252, 249, 249),
-                    ),
-                  ),
-                  child: _imageFile == null
-                      ? Center(
-                          child: Text(
-                            'Toca para seleccionar un comprobante',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      : Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.check,
-                                color: Color.fromARGB(255, 99, 182, 45),
-                              ),
-                              Text(
-                                'Toca para ver el comprobante',
-                                style: const TextStyle(
-                                  color: Color.fromARGB(255, 99, 182, 45),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Datos de la Cuenta',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: primaryDark,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildCustomTextField(
-                controller: _nombreCuentaController,
-                label: 'Nombre de la Cuenta',
-                icon: Icons.account_box_rounded,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa el nombre de la cuenta';
-                  }
-                  return null;
-                },
-              ),
-              _buildCustomTextField(
-                controller: _numeroCuentaController,
-                label: 'Número de Cuenta',
-                icon: Icons.account_balance_rounded,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingresa el número de cuenta';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: _handleBack,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: accent),
-                        ),
-                      ),
-                      child: Text(
-                        'Atrás',
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _donateMoney,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: primaryDark,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  primaryDark,
-                                ),
-                                strokeWidth: 3,
-                              ),
-                            )
-                          : const Text(
-                              'Finalizar',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1305,131 +341,439 @@ class DonationMoneyPageState extends State<DonationMoneyPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       backgroundColor: cream,
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: accent,
+        backgroundColor: primaryDark,
         elevation: 0,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: primaryDark),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-            },
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: white),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Donar en Dinero',
+        title: const Text(
+          'Donar Dinero',
           style: TextStyle(
-            color: primaryDark,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryBlue.withOpacity(0.9), cream.withOpacity(1)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            color: white,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: SafeArea(
-        child: Stack(
+      body: SingleChildScrollView(
+        child: Column(
           children: [
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 32),
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [primaryBlue, accentBlue],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryDark.withOpacity(0.2),
-                            blurRadius: 20,
-                            spreadRadius: 0,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              Icons.volunteer_activism_rounded,
-                              color: white,
-                              size: 32,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Tu Donación',
-                                  style: TextStyle(
-                                    color: white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Cada contribución cuenta',
-                                  style: TextStyle(
-                                    color: white.withOpacity(0.8),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+            // Header con stepper
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryDark, primaryBlue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
+              padding: const EdgeInsets.all(24),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_showMontoForm) _buildMontoForm(),
-                  if (_showDatosForm) _buildDatosForm(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildStepIndicator(0, 'Monto'),
+                      _buildStepLine(0),
+                      _buildStepIndicator(1, 'QR'),
+                      _buildStepLine(1),
+                      _buildStepIndicator(2, 'Comprobante'),
+                    ],
+                  ),
                 ],
+              ),
+            ),
+
+            // Contenido
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _buildCurrentStep(),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator(int step, String label) {
+    final isActive = _currentStep >= step;
+    return Column(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: isActive ? accent : lightBlue.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: isActive
+                ? Icon(
+                    step < _currentStep ? Icons.check : Icons.circle,
+                    color: primaryDark,
+                    size: 20,
+                  )
+                : Text(
+                    '${step + 1}',
+                    style: const TextStyle(
+                      color: white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: isActive ? white : lightBlue,
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepLine(int step) {
+    final isActive = _currentStep > step;
+    return Container(
+      width: 40,
+      height: 2,
+      color: isActive ? accent : lightBlue.withOpacity(0.3),
+      margin: const EdgeInsets.only(bottom: 30),
+    );
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0:
+        return _buildMontoForm();
+      case 1:
+        return _buildQRView();
+      case 2:
+        return _buildComprobanteForm();
+      default:
+        return _buildMontoForm();
+    }
+  }
+
+  Widget _buildMontoForm() {
+    return Container(
+      key: const ValueKey('monto'),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primaryDark.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ingresa el monto a donar',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: primaryDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'La donación será en Bolivianos (BOB)',
+              style: TextStyle(
+                fontSize: 14,
+                color: accentBlue,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: _montoController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Monto (BOB)',
+                prefixIcon: const Icon(Icons.attach_money, color: accent),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: accent, width: 2),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Por favor ingresa un monto';
+                }
+                final monto = double.tryParse(value);
+                if (monto == null || monto <= 0) {
+                  return 'Ingresa un monto válido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _generateQR,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: primaryDark,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Generar QR de Pago',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRView() {
+    return Container(
+      key: const ValueKey('qr'),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primaryDark.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Escanea este QR para pagar',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: primaryDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Monto: ${_montoController.text} BOB',
+            style: const TextStyle(
+              fontSize: 18,
+              color: accent,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
+          RepaintBoundary(
+            key: _qrKey,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: lightBlue.withOpacity(0.3), width: 2),
+              ),
+              child: PrettyQrView.data(
+                data: _qrData ?? '',
+                decoration: const PrettyQrDecoration(
+                  shape: PrettyQrSmoothSymbol(
+                    color: primaryDark,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _isDownloading ? null : _downloadQR,
+              icon: _isDownloading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryDark),
+                      ),
+                    )
+                  : const Icon(Icons.download),
+              label: Text(_isDownloading ? 'Guardando...' : 'Descargar QR'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _currentStep = 2;
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: primaryDark,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Continuar',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComprobanteForm() {
+    return Container(
+      key: const ValueKey('comprobante'),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primaryDark.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Sube tu comprobante de pago',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: primaryDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Adjunta una captura o foto del comprobante',
+            style: TextStyle(
+              fontSize: 14,
+              color: accentBlue,
+            ),
+          ),
+          const SizedBox(height: 24),
+          GestureDetector(
+            onTap: _pickComprobante,
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: cream,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _comprobanteFile != null ? accent : lightBlue.withOpacity(0.3),
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: _comprobanteFile != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.file(
+                        _comprobanteFile!,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.cloud_upload_outlined,
+                          size: 64,
+                          color: lightBlue,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Toca para seleccionar imagen',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: accentBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitDonation,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: successColor,
+                foregroundColor: white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(white),
+                      ),
+                    )
+                  : const Text(
+                      'Enviar Donación',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

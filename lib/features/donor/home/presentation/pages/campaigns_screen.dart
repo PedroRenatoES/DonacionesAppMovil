@@ -5,8 +5,9 @@ import 'package:flutter_donaciones_1/features/donor/home/domain/entities/campaig
 import 'package:flutter_donaciones_1/features/donor/home/presentation/providers/campaigns_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/constants/colors.dart';
+import 'campaign_detail_screen.dart';
 import 'donation_money_screen.dart';
-import 'donation_request_screen.dart';
+import 'donations_request_screen.dart' hide AppColors;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -112,7 +113,7 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
   }
 
   Future<Widget> _buildCampaignImage(String? imageUrl, String? token) async {
-    if (imageUrl == null || token == null) {
+    if (imageUrl == null || imageUrl.isEmpty) {
       return _buildImagePlaceholder(
         icon: Icons.campaign_rounded,
         text: 'Imagen no disponible',
@@ -120,13 +121,17 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
     }
 
     try {
+      if (kDebugMode) {
+        print('Loading campaign image from: $imageUrl');
+      }
+      
       final response = await http.get(
         Uri.parse(imageUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
+
+      if (kDebugMode) {
+        print('Image response status: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         return Container(
@@ -137,6 +142,9 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
             response.bodyBytes,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
+              if (kDebugMode) {
+                print('Error displaying image: $error');
+              }
               return _buildImagePlaceholder(
                 icon: Icons.image_not_supported_rounded,
                 text: 'Error al cargar imagen',
@@ -397,7 +405,18 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                         ),
                       ),
                     ),
-                child: Container(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => CampaignDetailScreen(
+                          campaign: campaign,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
                     color: white,
@@ -486,47 +505,6 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                                   ),
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Organizador
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: cream,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: accent,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.person_rounded,
-                                          size: 16,
-                                          color: primaryDark,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Organizador: ${campaign.organizer}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: primaryDark,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 // Botones de acción
@@ -641,7 +619,7 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                                       ],
                                     ),
                                     const SizedBox(height: 12),
-                                    // Botón solicitar donación
+                                    // Botón solicitar recogida
                                     Container(
                                       width: double.infinity,
                                       decoration: BoxDecoration(
@@ -668,12 +646,7 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                                                       context,
                                                       animation,
                                                       secondaryAnimation,
-                                                    ) => DonationRequestPage(
-                                                      campaignId: campaign.id
-                                                          .toString(),
-                                                      campaignName:
-                                                          campaign.name,
-                                                    ),
+                                                    ) => const CreateRequestScreen(),
                                                 transitionsBuilder:
                                                     (
                                                       context,
@@ -713,13 +686,13 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                                                   MainAxisAlignment.center,
                                               children: const [
                                                 Icon(
-                                                  Icons.request_page_rounded,
+                                                  Icons.local_shipping_rounded,
                                                   size: 18,
                                                   color: white,
                                                 ),
                                                 SizedBox(width: 8),
                                                 Text(
-                                                  'Solicitar Donación',
+                                                  'Solicitar Recogida',
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w700,
@@ -739,6 +712,7 @@ class CampaignsScreenState extends ConsumerState<CampaignsScreen>
                           ),
                         ],
                       ),
+                  ),
                 ),
               ),
             );

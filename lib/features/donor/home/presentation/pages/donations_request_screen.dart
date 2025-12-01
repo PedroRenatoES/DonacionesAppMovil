@@ -333,6 +333,7 @@ class DonationRequestCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
@@ -345,7 +346,7 @@ class DonationRequestCard extends StatelessWidget {
                                         : AppColors.accentBlue,
                                   ),
                                   const SizedBox(width: 8),
-                                  Expanded(
+                                  Flexible(
                                     child: Text(
                                       request.fechaProgramada != null 
                                           ? _formatDate(request.fechaProgramada!) 
@@ -359,7 +360,6 @@ class DonationRequestCard extends StatelessWidget {
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ],

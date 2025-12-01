@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '/features/auth/presentation/pages/change_password_screen.dart';
 import '/features/auth/presentation/pages/login_type_screen.dart';
 import '/features/auth/presentation/pages/register_screen.dart';
 import '/features/main/presentation/pages/main_screen.dart';
@@ -56,10 +57,22 @@ class LoginScreenState extends State<LoginScreen> {
         await prefs.setInt('donante_id', data['donante']['id']);
         await prefs.setString('donante_nombre', data['donante']['nombres']);
         await prefs.setString('user_type', 'donante');
+        
+        // Check if password change is required
+        final bool cambiarPassword = data['donante']['cambiar_password'] ?? false;
+        
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => MainScreen()),
-          );
+          if (cambiarPassword) {
+            // Navigate to change password screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
+            );
+          } else {
+            // Navigate to main screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => MainScreen()),
+            );
+          }
         }
       } else {
         if (mounted) {

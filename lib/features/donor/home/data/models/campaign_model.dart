@@ -23,6 +23,21 @@ class CampaignModel extends Campaign {
   });
 
   factory CampaignModel.fromJson(Map<String, dynamic> json) {
+    // Convert image path to full URL
+    String? imageUrl = json['imagen_banner'];
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      // If it's already a full URL, convert localhost to emulator address
+      if (imageUrl.startsWith('http://127.0.0.1:8000') || 
+          imageUrl.startsWith('http://localhost:8000')) {
+        imageUrl = imageUrl.replaceAll('http://127.0.0.1:8000', 'http://10.0.2.2:8000');
+        imageUrl = imageUrl.replaceAll('http://localhost:8000', 'http://10.0.2.2:8000');
+      } 
+      // If it's a relative path, build the full URL
+      else if (!imageUrl.startsWith('http')) {
+        imageUrl = 'http://10.0.2.2:8000/$imageUrl';
+      }
+    }
+    
     return CampaignModel(
       id: json['id_campana'],
       name: json['nombre'] ?? '',
@@ -30,7 +45,7 @@ class CampaignModel extends Campaign {
       startDate: DateTime.parse(json['fecha_inicio']),
       endDate: DateTime.parse(json['fecha_fin']),
       organizer: 'Organización',
-      imageUrl: json['imagen_banner'] ?? '',
+      imageUrl: imageUrl,
     );
   }
 
